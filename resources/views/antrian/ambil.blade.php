@@ -34,59 +34,45 @@
                         @csrf
                         
                         <div class="row">
-                            {{-- Nama Lengkap --}}
+                            {{-- Nama Lengkap - READONLY --}}
                             <div class="col-md-6 mb-3">
                                 <label for="name" class="form-label">Nama Lengkap</label>
                                 <input type="text" 
-                                       class="form-control @error('name') is-invalid @enderror" 
+                                       class="form-control readonly-input" 
                                        id="name" 
                                        name="name" 
                                        value="{{ old('name', Auth::user()->name) }}" 
-                                       required>
-                                @error('name')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
+                                       readonly 
+                                       tabindex="-1">
                             </div>
 
-                            {{-- Nomor HP --}}
+                            {{-- Nomor HP - READONLY --}}
                             <div class="col-md-6 mb-3">
                                 <label for="phone" class="form-label">Nomor HP</label>
                                 <input type="text" 
-                                       class="form-control @error('phone') is-invalid @enderror" 
+                                       class="form-control readonly-input" 
                                        id="phone" 
                                        name="phone" 
                                        value="{{ old('phone', Auth::user()->phone) }}" 
-                                       required>
-                                @error('phone')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
+                                       readonly 
+                                       tabindex="-1">
                             </div>
                         </div>
 
                         <div class="row">
-                            {{-- Jenis Kelamin --}}
+                            {{-- Jenis Kelamin - READONLY --}}
                             <div class="col-md-6 mb-3">
                                 <label for="gender" class="form-label">Jenis Kelamin</label>
-                                <select class="form-select @error('gender') is-invalid @enderror" 
-                                        id="gender" 
-                                        name="gender" 
-                                        required>
-                                    <option value="">-- Pilih Jenis Kelamin --</option>
-                                    <option value="Laki-laki" 
-                                            {{ old('gender', Auth::user()->gender) == 'Laki-laki' ? 'selected' : '' }}>
-                                        Laki-laki
-                                    </option>
-                                    <option value="Perempuan" 
-                                            {{ old('gender', Auth::user()->gender) == 'Perempuan' ? 'selected' : '' }}>
-                                        Perempuan
-                                    </option>
-                                </select>
-                                @error('gender')
-                                    <div class="invalid-feedback">{{ $message }}</div>
-                                @enderror
+                                <input type="text" 
+                                       class="form-control readonly-input" 
+                                       id="gender" 
+                                       name="gender" 
+                                       value="{{ old('gender', Auth::user()->gender) }}" 
+                                       readonly 
+                                       tabindex="-1">
                             </div>
 
-                            {{-- Poli --}}
+                            {{-- Poli - EDITABLE --}}
                             <div class="col-md-6 mb-3">
                                 <label for="poli" class="form-label">Poli</label>
                                 <select class="form-select @error('poli') is-invalid @enderror" 
@@ -108,7 +94,7 @@
                         </div>
 
                         <div class="row">
-                            {{-- Dokter --}}
+                            {{-- Dokter - EDITABLE --}}
                             <div class="col-md-6 mb-3">
                                 <label for="doctor_id" class="form-label">Dokter</label>
                                 <select class="form-select @error('doctor_id') is-invalid @enderror" 
@@ -129,7 +115,7 @@
                                 @enderror
                             </div>
 
-                            {{-- Tanggal Antrian --}}
+                            {{-- Tanggal Antrian - EDITABLE --}}
                             <div class="col-md-6 mb-3">
                                 <label for="tanggal" class="form-label">Tanggal Antrian</label>
                                 <input type="date" 
@@ -158,12 +144,54 @@
     </div>
 </div>
 
-{{-- JavaScript sederhana --}}
+{{-- 🔧 CSS UNTUK READONLY STYLING --}}
+<style>
+    /* Readonly Input Styling */
+    .readonly-input {
+        background-color: #e9ecef !important; /* Warna gelap/abu-abu */
+        color: #6c757d !important;            /* Text abu-abu */
+        border-color: #ced4da !important;     /* Border abu-abu */
+        cursor: not-allowed !important;       /* Cursor tidak bisa klik */
+        opacity: 0.8;                         /* Sedikit transparan */
+        font-weight: 500;                     /* Text agak tebal */
+        box-shadow: none !important;          /* Hilangkan shadow */
+        pointer-events: none;                 /* Tidak bisa diklik sama sekali */
+    }
+
+
+{{-- 🔧 JAVASCRIPT untuk disable interaksi readonly --}}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const doctorSelect = document.getElementById('doctor_id');
     const form = document.getElementById('antrianForm');
     const submitBtn = document.getElementById('submitBtn');
+
+    // Disable semua readonly input
+    const readonlyInputs = document.querySelectorAll('.readonly-input');
+    
+    readonlyInputs.forEach(function(input) {
+        // Disable semua event
+        input.addEventListener('click', function(e) {
+            e.preventDefault();
+            return false;
+        });
+        
+        input.addEventListener('focus', function(e) {
+            e.preventDefault();
+            this.blur();
+            return false;
+        });
+        
+        input.addEventListener('keydown', function(e) {
+            e.preventDefault();
+            return false;
+        });
+        
+        input.addEventListener('mousedown', function(e) {
+            e.preventDefault();
+            return false;
+        });
+    });
 
     // Show doctor specialization when selected
     doctorSelect.addEventListener('change', function() {
@@ -179,6 +207,13 @@ document.addEventListener('DOMContentLoaded', function() {
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Memproses...';
     });
+
+    // Set minimum date untuk tanggal antrian
+    const tanggalInput = document.getElementById('tanggal');
+    if (tanggalInput) {
+        const today = new Date().toISOString().split('T')[0];
+        tanggalInput.setAttribute('min', today);
+    }
 });
 </script>
 @endsection

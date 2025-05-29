@@ -7,16 +7,13 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\HomeController;
 use App\Http\Controllers\AntrianController;
 use App\Http\Controllers\DoctorController;
-use App\Http\Controllers\RiwayatController; // TAMBAH: Import RiwayatController
+use App\Http\Controllers\RiwayatController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ResetPasswordController;
 use App\Http\Controllers\ProfileController;
 
 // Halaman Utama
 Route::get('/', fn () => view('welcome'))->name('welcome');
-
-// Riwayat Pasien - UPDATED: gunakan controller
-Route::middleware('auth')->get('/riwayatkunjungan', [RiwayatController::class, 'index'])->name('riwayat.index');
 
 // Auth: Login & Register
 Route::controller(LoginController::class)->group(function () {
@@ -47,19 +44,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/editprofile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::post('/updateprofile', [ProfileController::class, 'update'])->name('profile.update');
 
-    // Antrian Routes - SUDAH DIPERBAIKI
+    // Riwayat Pasien
+    Route::get('/riwayatkunjungan', [RiwayatController::class, 'index'])->name('riwayat.index');
+
+    // Antrian Routes
     Route::prefix('antrian')->name('antrian.')->group(function () {
         Route::get('/', [AntrianController::class, 'index'])->name('index');
-        Route::get('/create', [AntrianController::class, 'create'])->name('create');
+        
+        // ✅ ROUTE UTAMA: /ambil sebagai pengganti /create
+        Route::get('/ambil', [AntrianController::class, 'create'])->name('create');
+        
         Route::post('/', [AntrianController::class, 'store'])->name('store');
-        Route::get('/{id}', [AntrianController::class, 'show'])->name('show'); // TAMBAH: untuk detail
+        Route::get('/{id}', [AntrianController::class, 'show'])->name('show');
         Route::get('/{id}/edit', [AntrianController::class, 'edit'])->name('edit');
         Route::put('/{id}', [AntrianController::class, 'update'])->name('update');
         Route::delete('/{id}', [AntrianController::class, 'destroy'])->name('destroy');
         Route::get('/{id}/print', [AntrianController::class, 'print'])->name('print');
-        
-        // Ambil Antrian - PERBAIKAN: gunakan method create
-        Route::get('/ambil', [AntrianController::class, 'create'])->name('ambil');
     });
 
     // Jadwal Dokter

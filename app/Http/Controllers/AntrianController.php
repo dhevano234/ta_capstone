@@ -21,19 +21,7 @@ class AntrianController extends Controller
                                 ->latest()
                                 ->first();
 
-        // Query builder untuk daftar antrian
-        $query = Antrian::with(['user', 'doctor'])
-                        ->where('user_id', Auth::id());
-
-        // Filter berdasarkan poli jika ada
-        if ($request->filled('poli')) {
-            $query->where('poli', $request->poli);
-        }
-
-        // Semua antrian user dengan filter dan pagination
-        $daftarAntrian = $query->orderBy('created_at', 'desc')->paginate(10);
-
-        return view('antrian.index', compact('antrianTerbaru', 'daftarAntrian'));
+        return view('antrian.index', compact('antrianTerbaru'));
     }
 
     /**
