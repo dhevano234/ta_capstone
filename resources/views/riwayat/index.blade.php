@@ -132,6 +132,7 @@
         position: relative;
     }
 
+    
     /* Sticky Header */
     .table thead th {
         position: sticky;

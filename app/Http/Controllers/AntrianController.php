@@ -7,6 +7,7 @@ use App\Models\Doctor;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf; // Import untuk PDF
 
 class AntrianController extends Controller
 {
@@ -101,7 +102,7 @@ class AntrianController extends Controller
     }
 
     /**
-     * Print tiket antrian
+     * Print tiket antrian (HTML View)
      */
     public function print($id)
     {
@@ -113,6 +114,40 @@ class AntrianController extends Controller
         }
 
         return view('antrian.print', compact('antrian'));
+    }
+
+    /**
+     * Download tiket antrian sebagai PDF
+     */
+    public function downloadPdf($id)
+    {
+        $antrian = Antrian::with(['user', 'doctor'])->findOrFail($id);
+        
+        // Pastikan user hanya bisa download antrian mereka sendiri
+        if (Auth::id() !== $antrian->user_id) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        try {
+            // Generate PDF dengan template khusus
+            $pdf = Pdf::loadView('antrian.pdf', compact('antrian'))
+                      ->setPaper([0, 0, 283.46, 566.93], 'portrait') // Ukuran setengah A4
+                      ->setOptions([
+                          'dpi' => 150,
+                          'defaultFont' => 'sans-serif',
+                          'isHtml5ParserEnabled' => true,
+                          'isRemoteEnabled' => false, // Keamanan
+                      ]);
+
+            $filename = 'tiket-antrian-' . $antrian->no_antrian . '-' . date('Ymd-His') . '.pdf';
+            
+            return $pdf->download($filename);
+
+        } catch (\Exception $e) {
+            return back()->withErrors([
+                'error' => 'Gagal membuat PDF. Silakan coba lagi.'
+            ]);
+        }
     }
 
     /**
@@ -135,7 +170,7 @@ class AntrianController extends Controller
      */
     public function edit($id)
     {
-        $antrian = Antrian::findOrFail($id);
+        $antrian = Antrian::with(['user', 'doctor'])->findOrFail($id); // Load relationship
         
         // Pastikan user hanya bisa edit antrian mereka sendiri
         if (Auth::id() !== $antrian->user_id) {
@@ -145,7 +180,7 @@ class AntrianController extends Controller
         // Check apakah masih bisa diedit
         if (!$antrian->canEdit()) {
             return redirect()->route('antrian.index')
-                           ->withErrors(['error' => 'Antrian tidak dapat diedit.']);
+                           ->withErrors(['error' => 'Antrian tidak dapat diedit karena sudah melewati batas waktu atau status tidak memungkinkan.']);
         }
 
         $doctors = Doctor::all();
@@ -169,7 +204,7 @@ class AntrianController extends Controller
         // Check apakah masih bisa diedit
         if (!$antrian->canEdit()) {
             return redirect()->route('antrian.index')
-                           ->withErrors(['error' => 'Antrian tidak dapat diedit.']);
+                           ->withErrors(['error' => 'Antrian tidak dapat diedit karena sudah melewati batas waktu atau status tidak memungkinkan.']);
         }
 
         $request->validate([
@@ -179,9 +214,32 @@ class AntrianController extends Controller
             'poli' => 'required|string',
             'doctor_id' => 'required|exists:doctors,doctor_id',
             'tanggal' => 'required|date|after_or_equal:today',
+        ], [
+            'name.required' => 'Nama harus diisi',
+            'phone.required' => 'Nomor telepon harus diisi',
+            'gender.required' => 'Jenis kelamin harus dipilih',
+            'poli.required' => 'Poli harus dipilih',
+            'doctor_id.required' => 'Dokter harus dipilih',
+            'tanggal.required' => 'Tanggal harus diisi',
+            'tanggal.after_or_equal' => 'Tanggal tidak boleh kurang dari hari ini',
         ]);
 
         try {
+            // Cek duplikat tanggal jika user mengubah tanggal
+            if ($antrian->tanggal->format('Y-m-d') !== $request->tanggal) {
+                $existingAntrian = Antrian::where('user_id', Auth::id())
+                                         ->where('tanggal', $request->tanggal)
+                                         ->where('status', 'menunggu')
+                                         ->where('id', '!=', $id) // Exclude current antrian
+                                         ->first();
+
+                if ($existingAntrian) {
+                    return back()->withErrors([
+                        'tanggal' => 'Anda sudah memiliki antrian lain pada tanggal tersebut.'
+                    ])->withInput();
+                }
+            }
+
             $updateData = [
                 'name' => $request->name,
                 'phone' => $request->phone,
@@ -192,7 +250,7 @@ class AntrianController extends Controller
             ];
 
             // Jika poli atau tanggal berubah, generate ulang nomor antrian
-            if ($antrian->poli !== $request->poli || $antrian->tanggal !== $request->tanggal) {
+            if ($antrian->poli !== $request->poli || $antrian->tanggal->format('Y-m-d') !== $request->tanggal) {
                 $updateData['no_antrian'] = Antrian::generateNoAntrian($request->poli, $request->tanggal);
                 $updateData['urutan'] = Antrian::generateUrutan($request->poli, $request->tanggal);
             }
@@ -203,7 +261,7 @@ class AntrianController extends Controller
 
         } catch (\Exception $e) {
             return back()->withErrors([
-                'error' => 'Terjadi kesalahan saat memperbarui antrian.'
+                'error' => 'Terjadi kesalahan saat memperbarui antrian: ' . $e->getMessage()
             ])->withInput();
         }
     }
@@ -223,18 +281,18 @@ class AntrianController extends Controller
         // Check apakah masih bisa dibatalkan
         if (!$antrian->canCancel()) {
             return redirect()->route('antrian.index')
-                           ->withErrors(['error' => 'Antrian tidak dapat dibatalkan.']);
+                           ->withErrors(['error' => 'Antrian tidak dapat dibatalkan karena sudah melewati batas waktu atau status tidak memungkinkan.']);
         }
 
         try {
-            // Update status menjadi dibatalkan
+            // Update status menjadi dibatalkan (soft cancel, tidak delete)
             $antrian->update(['status' => 'dibatalkan']);
             
             return redirect()->route('antrian.index')->with('success', 'Antrian berhasil dibatalkan!');
             
         } catch (\Exception $e) {
             return back()->withErrors([
-                'error' => 'Terjadi kesalahan saat membatalkan antrian.'
+                'error' => 'Terjadi kesalahan saat membatalkan antrian: ' . $e->getMessage()
             ]);
         }
     }

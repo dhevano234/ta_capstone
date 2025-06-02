@@ -51,15 +51,25 @@ Route::middleware('auth')->group(function () {
     Route::prefix('antrian')->name('antrian.')->group(function () {
         Route::get('/', [AntrianController::class, 'index'])->name('index');
         
-        // ✅ ROUTE UTAMA: /ambil sebagai pengganti /create
+        // Route untuk membuat antrian baru
         Route::get('/ambil', [AntrianController::class, 'create'])->name('create');
-        
         Route::post('/', [AntrianController::class, 'store'])->name('store');
+        
+        // Route untuk detail antrian
         Route::get('/{id}', [AntrianController::class, 'show'])->name('show');
+        
+        // Route untuk edit antrian
         Route::get('/{id}/edit', [AntrianController::class, 'edit'])->name('edit');
         Route::put('/{id}', [AntrianController::class, 'update'])->name('update');
+        
+        // Route untuk batalkan antrian
         Route::delete('/{id}', [AntrianController::class, 'destroy'])->name('destroy');
+        
+        // Route untuk print tiket (HTML view)
         Route::get('/{id}/print', [AntrianController::class, 'print'])->name('print');
+        
+        // Route untuk download PDF tiket
+        Route::get('/{id}/download-pdf', [AntrianController::class, 'downloadPdf'])->name('downloadPdf');
     });
 
     // Jadwal Dokter
